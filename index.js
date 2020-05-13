@@ -38,19 +38,26 @@ function loadUri(path) {
 
 let stack;
 for (let i=2; i<process.argv.length; ++i) {
-    const arg = process.argv[i];
-    // console.log("got arg", arg);
-    if (arg === "-") {
-        stack = fs.readFileSync("/dev/stdin").toString();
-    } else if (arg.lastIndexOf("-f", 0) === 0) {
-        stack = fs.readFileSync(arg.substr(2)).toString();
-    } else if (arg.lastIndexOf("--file=", 0) === 0) {
-        stack = fs.readFileSync(arg.substr(7)).toString();
-    } else if (arg === "-h" || arg === "--help") {
-        console.log("smip [stack|-h|--help|-f=@FILE@|-");
-        process.exit(0);
-    } else {
-        stack = arg;
+    try {
+        const arg = process.argv[i];
+        // console.log("got arg", arg);
+        if (arg === "-") {
+            stack = fs.readFileSync("/dev/stdin").toString();
+        } else if (arg === "-f" || arg === "--file") {
+            stack = fs.readFileSync(process.argv[++i]).toString();
+        } else if ( arg.lastIndexOf("-f", 0) === 0) {
+            stack = fs.readFileSync(arg.substr(2)).toString();
+        } else if (arg.lastIndexOf("--file=", 0) === 0) {
+            stack = fs.readFileSync(arg.substr(7)).toString();
+        } else if (arg === "-h" || arg === "--help") {
+            console.log("smip [stack|-h|--help|-f=@FILE@|-");
+            process.exit(0);
+        } else {
+            stack = arg;
+        }
+    } catch (err) {
+        console.error("Error: " + err.toString());
+        process.exit(1);
     }
 }
 
@@ -59,13 +66,15 @@ if (!stack) {
     process.exit(0);
 }
 Promise.all(stack.split("\n").filter(x => x).map(x => {
+    const idx = x.indexOf("UI_ENGINE(fatal): ");
+    if (idx !== -1)
+        x = x.substr(idx + 18);
     const match = /([^ ]*@)?(.*):([0-9]+):([0-9]+)/.exec(x);
     if (!match) {
         const nolinecol = /([^ ]*)@(.*)/.exec(x);
         if (nolinecol) {
             return nolinecol[0];
         }
-        // console.log("balls", x);
         return x;
     }
 
@@ -74,8 +83,11 @@ Promise.all(stack.split("\n").filter(x => x).map(x => {
         let url = match[2];
         let line = parseInt(match[3]);
         let column = parseInt(match[4]);
-        return loadUri(url + ".map").then((smap) => {
-            // console.log("got map", Object.keys(smap));
+        let newUrl, newLine, newColumn;
+        const mapUrl = url + ".map";
+        // console.log("calling loadUri", mapUrl);
+        return loadUri(mapUrl).then((smap) => {
+            // console.log("got map", mapUrl, Object.keys(smap));
 
             const pos = smap.originalPositionFor({ line, column });
             if (!pos.source) {
@@ -85,21 +97,33 @@ Promise.all(stack.split("\n").filter(x => x).map(x => {
 
             // smc.sourceContentFor(pos.source);
 
-            url = pos.source;
-            line = pos.line;
-            column = pos.column;
+            newUrl = pos.source;
+            newLine = pos.line;
+            newColumn = pos.column;
         }).catch((err) => {
+            // console.log("didn't get map", mapUrl);
             // console.error(err);
         }).finally(() => {
-            if (functionName) {
-                resolve(`${functionName}@${url}:${line}:${column}`);
-            } else {
-                resolve(`${url}:${line}:${column}`);
+            function build(functionName, url, line, column) {
+                if (functionName) {
+                    return `${functionName}@${url}:${line}:${column}`;
+                } else {
+                    return `${url}:${line}:${column}`;
+                }
             }
+            let str;
+            if (newUrl) {
+                str = `${build(functionName, newUrl, newLine, newColumn)} (${build(undefined, url, line, column)})`;
+            } else {
+                str = build(functionName, url, line, column);
+            }
+            resolve(str);
         });
     });
 })).then((results) => {
-    console.log(results);
+    results.forEach(str => {
+        console.log(str);
+    });
 }).catch((error) => {
     console.error("Got an error", error);
 });
