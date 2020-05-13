@@ -49,7 +49,7 @@ for (let i=2; i<process.argv.length; ++i) {
         } else if (arg.lastIndexOf("--file=", 0) === 0) {
             stack = fs.readFileSync(arg.substr(7)).toString();
         } else if (arg === "-h" || arg === "--help") {
-            console.log("smip [stack|-h|--help|-f=@FILE@|-");
+            console.log("smipper [stack|-h|--help|-f=@FILE@|-");
             process.exit(0);
         } else {
             stack = arg;
