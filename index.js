@@ -54,6 +54,10 @@ for (let i=2; i<process.argv.length; ++i) {
     }
 }
 
+if (!stack) {
+    console.log("Nothing to do");
+    process.exit(0);
+}
 Promise.all(stack.split("\n").filter(x => x).map(x => {
     const match = /([^ ]*@)?(.*):([0-9]+):([0-9]+)/.exec(x);
     if (!match) {
