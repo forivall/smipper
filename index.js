@@ -4,6 +4,7 @@
 const fs = require("fs");
 const loader = require("path-loader");
 const sourceMap = require("source-map");
+const url = require("url");
 
 const sourceMaps = {};
 function loadUri(path) {
@@ -13,8 +14,21 @@ function loadUri(path) {
                 resolvers: [ resolve ],
                 rejecters: [ reject  ]
             };
-            loader.load(path).then((data) => {
-                const parsed = JSON.parse(data);
+            loader.load(path).then(jsData => {
+                const idx = jsData.lastIndexOf("//# sourceMappingURL=");
+                // console.log("Got the file", jsData.length, idx);
+                if (idx == -1)
+                    return path + ".map";
+
+                const mapUrl = jsData.substr(idx + 21);
+                if (mapUrl.indexOf("://") != -1) {
+                    return mapUrl;
+                }
+                return (new url.URL(mapUrl, path)).href;
+            }).then(mapUrl => {
+                return loader.load(mapUrl);
+            }).then(sourceMapData => {
+                const parsed = JSON.parse(sourceMapData);
                 const smap = new sourceMap.SourceMapConsumer(parsed);
                 const pending = sourceMaps[path];
                 pending.resolvers.forEach(func => {
@@ -65,12 +79,10 @@ if (!stack) {
     process.exit(0);
 }
 Promise.all(stack.split("\n").filter(x => x).map(x => {
-    const idx = x.indexOf("UI_ENGINE(fatal): ");
-    if (idx !== -1)
-        x = x.substr(idx + 18);
     const match = /([^ ]*@)?(.*):([0-9]+):([0-9]+)/.exec(x);
+    // console.log(x, " => ", match);
     if (!match) {
-        const nolinecol = /([^ ]*)@(.*)/.exec(x);
+        const nolinecol = /([^ ]*)(.*)/.exec(x);
         if (nolinecol) {
             return nolinecol[0];
         }
@@ -78,14 +90,13 @@ Promise.all(stack.split("\n").filter(x => x).map(x => {
     }
 
     return new Promise((resolve, reject) => {
-        const functionName = match[1];
+        const functionName = match[1] || "";
         let url = match[2];
         let line = parseInt(match[3]);
         let column = parseInt(match[4]);
         let newUrl, newLine, newColumn;
-        const mapUrl = url + ".map";
         // console.log("calling loadUri", mapUrl);
-        return loadUri(mapUrl).then((smap) => {
+        return loadUri(url).then((smap) => {
             // console.log("got map", mapUrl, Object.keys(smap));
 
             const pos = smap.originalPositionFor({ line, column });
@@ -104,15 +115,11 @@ Promise.all(stack.split("\n").filter(x => x).map(x => {
             // console.error(err);
         }).finally(() => {
             function build(functionName, url, line, column) {
-                if (functionName) {
-                    return `${functionName}@${url}:${line}:${column}`;
-                } else {
-                    return `${url}:${line}:${column}`;
-                }
+                return `${functionName}${url}:${line}:${column}`;
             }
             let str;
             if (newUrl) {
-                str = `${build(functionName, newUrl, newLine, newColumn)} (${build(undefined, url, line, column)})`;
+                str = `${build(functionName, newUrl, newLine, newColumn)} (${build("", url, line, column)})`;
             } else {
                 str = build(functionName, url, line, column);
             }
