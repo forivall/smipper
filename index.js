@@ -14,7 +14,6 @@ function loadUri(path) {
                 rejecters: [ reject  ]
             };
             loader.load(path).then((data) => {
-                // console.log("got shit", path, data.length);
                 const parsed = JSON.parse(data);
                 const smap = new sourceMap.SourceMapConsumer(parsed);
                 const pending = sourceMaps[path];
