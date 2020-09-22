@@ -5,6 +5,7 @@ const fs = require("fs");
 const loader = require("path-loader");
 const sourceMap = require("source-map");
 const url = require("url");
+let verbose = false;
 
 const sourceMaps = {};
 function loadUri(path) {
@@ -16,7 +17,8 @@ function loadUri(path) {
             };
             loader.load(path).then(jsData => {
                 const idx = jsData.lastIndexOf("//# sourceMappingURL=");
-                // console.log("Got the file", jsData.length, idx);
+                if (verbose)
+                    console.error("Got the file", jsData.length, idx);
                 if (idx == -1)
                     return path + ".map";
 
@@ -42,7 +44,8 @@ function loadUri(path) {
             });
         } else {
             const cur = sourceMaps[path];
-            // console.log("here", cur);
+            if (verbose)
+                console.error("path is in source maps already", cur);
             cur.resolvers.push(resolve);
             cur.rejecters.push(reject);
         }
@@ -53,7 +56,8 @@ let stack;
 for (let i=2; i<process.argv.length; ++i) {
     try {
         const arg = process.argv[i];
-        // console.log("got arg", arg);
+        if (verbose)
+            console.error("got arg", arg);
         if (arg === "-") {
             stack = fs.readFileSync("/dev/stdin").toString();
         } else if (arg === "-f" || arg === "--file") {
@@ -62,8 +66,10 @@ for (let i=2; i<process.argv.length; ++i) {
             stack = fs.readFileSync(arg.substr(2)).toString();
         } else if (arg.lastIndexOf("--file=", 0) === 0) {
             stack = fs.readFileSync(arg.substr(7)).toString();
+        } else if (arg === "--verbose" || arg === "-v") {
+            verbose = true;
         } else if (arg === "-h" || arg === "--help") {
-            console.log("smipper [stack|-h|--help|-f=@FILE@|-");
+            console.error("smipper [stack|-h|--help|-v|--verbose|-f=@FILE@|-");
             process.exit(0);
         } else {
             stack = arg;
@@ -75,12 +81,13 @@ for (let i=2; i<process.argv.length; ++i) {
 }
 
 if (!stack) {
-    console.log("Nothing to do");
+    console.error("Nothing to do");
     process.exit(0);
 }
 Promise.all(stack.split("\n").filter(x => x).map(x => {
     const match = /([^ ]*@)?(.*):([0-9]+):([0-9]+)/.exec(x);
-    // console.log(x, " => ", match);
+    if (verbose)
+        console.error(x, " => ", match);
     if (!match) {
         const nolinecol = /([^ ]*)(.*)/.exec(x);
         if (nolinecol) {
@@ -95,13 +102,16 @@ Promise.all(stack.split("\n").filter(x => x).map(x => {
         let line = parseInt(match[3]);
         let column = parseInt(match[4]);
         let newUrl, newLine, newColumn;
-        // console.log("calling loadUri", mapUrl);
+        if (verbose)
+            console.error("calling loadUri", url);
         return loadUri(url).then((smap) => {
-            // console.log("got map", mapUrl, Object.keys(smap));
+            if (verbose)
+                console.error("got map", url, Object.keys(smap));
 
             const pos = smap.originalPositionFor({ line, column });
             if (!pos.source) {
-                // console.log("nothing here", pos);
+                if (verbose)
+                    console.error("nothing here", pos);
                 throw new Error("Mapping not found");
             }
 
@@ -111,7 +121,8 @@ Promise.all(stack.split("\n").filter(x => x).map(x => {
             newLine = pos.line;
             newColumn = pos.column;
         }).catch((err) => {
-            // console.log("didn't get map", mapUrl);
+            if (verbose)
+                console.error("didn't get map", url);
             // console.error(err);
         }).finally(() => {
             function build(functionName, url, line, column) {
