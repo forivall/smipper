@@ -53,6 +53,7 @@ function loadUri(path) {
 }
 
 let stack;
+let json = false;
 for (let i=2; i<process.argv.length; ++i) {
     try {
         const arg = process.argv[i];
@@ -68,8 +69,10 @@ for (let i=2; i<process.argv.length; ++i) {
             stack = fs.readFileSync(arg.substr(7)).toString();
         } else if (arg === "--verbose" || arg === "-v") {
             verbose = true;
+        } else if (arg === "--json") {
+            json = true;
         } else if (arg === "-h" || arg === "--help") {
-            console.error("smipper [stack|-h|--help|-v|--verbose|-f=@FILE@|-");
+            console.error("smipper [stack|-h|--help|-v|--verbose|--json|-f=@FILE@|-");
             process.exit(0);
         } else {
             stack = arg;
@@ -84,23 +87,12 @@ if (!stack) {
     console.error("Nothing to do");
     process.exit(0);
 }
-Promise.all(stack.split("\n").filter(x => x).map(x => {
-    const match = /([^ ]*@)?(.*):([0-9]+):([0-9]+)/.exec(x);
-    if (verbose)
-        console.error(x, " => ", match);
-    if (!match) {
-        const nolinecol = /([^ ]*)(.*)/.exec(x);
-        if (nolinecol) {
-            return nolinecol[0];
-        }
-        return x;
-    }
 
+function processFrame(functionName, url, line, column)
+{
+    if (verbose)
+        console.log("got frame", functionName, url, line, column);
     return new Promise((resolve, reject) => {
-        const functionName = match[1] || "";
-        let url = match[2];
-        let line = parseInt(match[3]);
-        let column = parseInt(match[4]);
         let newUrl, newLine, newColumn;
         if (verbose)
             console.error("calling loadUri", url);
@@ -125,23 +117,83 @@ Promise.all(stack.split("\n").filter(x => x).map(x => {
                 console.error("didn't get map", url);
             // console.error(err);
         }).finally(() => {
-            function build(functionName, url, line, column) {
-                return `${functionName}${url}:${line}:${column}`;
-            }
-            let str;
-            if (newUrl) {
-                str = `${build(functionName, newUrl, newLine, newColumn)} (${build("", url, line, column)})`;
+            if (json) {
+                const ret = {
+                    functionName: functionName,
+                    sourceURL: newUrl ? newUrl : url,
+                    line: newUrl ? newLine : line,
+                    column: newUrl ? newColumn : column
+                };
+                if (newUrl) {
+                    ret.oldSourceURL = url;
+                    ret.oldLine = line;
+                    ret.oldColumn = column;
+                }
+                // if (newUrl) {
+                //     ret.newUrl = newUrl;
+                //     ret.newLine = newLine;
+                //     ret.newColumn = newColumn;
+                // }
+                resolve(ret);
             } else {
-                str = build(functionName, url, line, column);
+                function build(functionName, url, line, column) {
+                    return `${functionName}${url}:${line}:${column}`;
+                }
+                let str;
+                if (newUrl) {
+                    str = `${build(functionName, newUrl, newLine, newColumn)} (${build("", url, line, column)})`;
+                } else {
+                    str = build(functionName, url, line, column);
+                }
+                resolve(str);
             }
-            resolve(str);
         });
     });
-})).then((results) => {
-    results.forEach(str => {
-        console.log(str);
-    });
-}).catch((error) => {
-    console.error("Got an error", error);
-});
+}
 
+if (json) {
+    let parsed;
+    try {
+        parsed = JSON.parse(stack);
+        if (!Array.isArray(parsed))
+            throw new Error("Expected array");
+    } catch (err) {
+        console.error(`Can't parse json ${err}`);
+        process.exit(1);
+    }
+    Promise.all(parsed.map((frame) => {
+        if (verbose)
+            console.error("got frame frame", frame);
+        return processFrame(frame.functionName || "", frame.sourceURL, frame.line, frame.column);
+    })).then((results) => {
+        results.forEach((frame, index) => {
+            frame.index = index;
+        });
+        // console.log("shit", results);
+        console.log(JSON.stringify(results, null, 4));
+    }).catch((error) => {
+        console.error("Got an error", error);
+        process.exit(2);
+    });
+} else {
+    Promise.all(stack.split("\n").filter(x => x).map(x => {
+        const match = /([^ ]*@)?(.*):([0-9]+):([0-9]+)/.exec(x);
+        if (verbose)
+            console.error(x, " => ", match);
+        if (!match) {
+            const nolinecol = /([^ ]*)(.*)/.exec(x);
+            if (nolinecol) {
+                return nolinecol[0];
+            }
+            return x;
+        }
+        return processFrame(match[1] || "", match[2], parseInt(match[3]), parseInt(match[4]));
+    })).then((results) => {
+        results.forEach(str => {
+            console.log(str);
+        });
+    }).catch((error) => {
+        console.error("Got an error", error);
+        process.exit(3);
+    });
+}
