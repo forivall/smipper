@@ -177,6 +177,7 @@ if (json) {
     });
 } else {
     Promise.all(stack.split("\n").filter(x => x).map(x => {
+        x = x.trim();
         const match = /([^ ]*@)?(.*):([0-9]+):([0-9]+)/.exec(x);
         if (verbose)
             console.error(x, " => ", match);
