@@ -100,7 +100,9 @@ function processFrame(functionName, url, line, column)
             if (verbose)
                 console.error("got map", url, Object.keys(smap));
 
-            const pos = smap.originalPositionFor({ line, column });
+            // it appears that we're supposed to reduce the column
+            // number by 1 when we get this from jsc
+            const pos = smap.originalPositionFor({ line, column - 1 });
             if (!pos.source) {
                 if (verbose)
                     console.error("nothing here", pos);
