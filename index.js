@@ -102,7 +102,8 @@ function processFrame(functionName, url, line, column)
 
             // it appears that we're supposed to reduce the column
             // number by 1 when we get this from jsc
-            const pos = smap.originalPositionFor({ line, column - 1 });
+            --column;
+            const pos = smap.originalPositionFor({ line, column });
             if (!pos.source) {
                 if (verbose)
                     console.error("nothing here", pos);
