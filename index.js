@@ -9,6 +9,9 @@ let verbose = false;
 
 const sourceMaps = {};
 function loadUri(path) {
+    if (path[0] === "/") {
+        path = "file://" + path;
+    }
     return new Promise((resolve, reject) => {
         if (!(path in sourceMaps)) {
             sourceMaps[path] = {
