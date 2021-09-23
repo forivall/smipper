@@ -95,6 +95,8 @@ function processFrame(functionName, url, line, column)
 {
     if (verbose)
         console.log("got frame", functionName, url, line, column);
+    if (functionName.endsWith("@"))
+        functionName = functionName.substr(0, functionName.length - 1);
     return new Promise((resolve, reject) => {
         let newUrl, newLine, newColumn;
         if (verbose)
@@ -186,8 +188,7 @@ if (json) {
         x = x.trim();
         let match = / *at ?([^ ]*) (.*):([0-9]+):([0-9]+)/.exec(x);
         if (!match) {
-            match = /([^ ]*)@?(.*):([0-9]+):([0-9]+)/.exec(x);
-            console.error(match);
+            match = /([^ ]+@)?(.*):([0-9]+):([0-9]+)/.exec(x);
         }
         if (verbose)
             console.error(x, " => ", match);
