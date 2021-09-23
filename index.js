@@ -143,7 +143,7 @@ function processFrame(functionName, url, line, column)
                 resolve(ret);
             } else {
                 function build(functionName, url, line, column) {
-                    return `${functionName}${url}:${line}:${column}`;
+                    return `${functionName ? "at " + functionName + " " : ""}${url}:${line}:${column}`;
                 }
                 let str;
                 if (newUrl) {
@@ -184,7 +184,11 @@ if (json) {
 } else {
     Promise.all(stack.split("\n").filter(x => x).map(x => {
         x = x.trim();
-        const match = /([^ ]*@)?(.*):([0-9]+):([0-9]+)/.exec(x);
+        let match = / *at ?([^ ]*) (.*):([0-9]+):([0-9]+)/.exec(x);
+        if (!match) {
+            match = /([^ ]*)@?(.*):([0-9]+):([0-9]+)/.exec(x);
+            console.error(match);
+        }
         if (verbose)
             console.error(x, " => ", match);
         if (!match) {
