@@ -186,7 +186,7 @@ if (json) {
 } else {
     Promise.all(stack.split("\n").filter(x => x).map(x => {
         x = x.trim();
-        let match = / *at ?([^ ]*) (.*):([0-9]+):([0-9]+)/.exec(x);
+        let match = / *at *([^ ]*).* \(?([^ ]+):([0-9]+):([0-9]+)/.exec(x);
         if (!match) {
             match = /([^ ]+@)?(.*):([0-9]+):([0-9]+)/.exec(x);
         }
