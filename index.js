@@ -172,7 +172,7 @@ if (json) {
     Promise.all(parsed.map((frame) => {
         if (verbose)
             console.error("got frame frame", frame);
-        return processFrame(frame.functionName || "", frame.sourceURL, frame.line, frame.column);
+        return processFrame(frame.functionName || "", frame.sourceURL || "", frame.line, frame.column);
     })).then((results) => {
         results.forEach((frame, index) => {
             frame.index = index;
