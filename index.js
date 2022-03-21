@@ -101,6 +101,9 @@ function processFrame(functionName, url, line, column)
         let newUrl, newLine, newColumn;
         if (verbose)
             console.error("calling loadUri", url);
+        if (!url.includes("://") && url[0] !== "/" && fs.existsSync(url)) {
+            url = `file://${process.cwd()}/${url}`;
+        }
         return loadUri(url).then((smap) => {
             if (verbose)
                 console.error("got map", url, Object.keys(smap));
@@ -122,7 +125,7 @@ function processFrame(functionName, url, line, column)
             newColumn = pos.column;
         }).catch((err) => {
             if (verbose)
-                console.error("didn't get map", url);
+                console.error("didn't get map", url, err);
             // console.error(err);
         }).finally(() => {
             if (json) {
