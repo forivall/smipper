@@ -2,10 +2,39 @@
 "use strict";
 
 const fs = require("fs");
-const loader = require("path-loader");
+const got = require("got");
 const sourceMap = require("source-map");
 const url = require("url");
 let verbose = false;
+let stack;
+let json = false;
+let retries = 3;
+
+function load(path)
+{
+    return new Promise((resolve, reject) => {
+        if (path.startsWith("file:///")) {
+            try {
+                resolve(fs.readFileSync(path.substr(7), "utf8"));
+            } catch (err) {
+                reject(err);
+            }
+            return;
+        }
+        let retryIndex = 0;
+        async function get()
+        {
+            try {
+                const response = await got.get(path, { retry: { limit: retries } });
+                return response.body;
+            } catch (err) {
+                reject(err);
+            }
+        }
+
+        get().then(resolve, reject);
+    });
+}
 
 const sourceMaps = {};
 function loadUri(path) {
@@ -13,12 +42,14 @@ function loadUri(path) {
         path = "file://" + path;
     }
     return new Promise((resolve, reject) => {
+        if (verbose)
+            console.log("loading", path);
         if (!(path in sourceMaps)) {
             sourceMaps[path] = {
                 resolvers: [ resolve ],
                 rejecters: [ reject  ]
             };
-            loader.load(path).then(jsData => {
+            load(path).then(jsData => {
                 const idx = jsData.lastIndexOf("//# sourceMappingURL=");
                 if (verbose)
                     console.error("Got the file", jsData.length, idx);
@@ -31,7 +62,7 @@ function loadUri(path) {
                 }
                 return (new url.URL(mapUrl, path)).href;
             }).then(mapUrl => {
-                return loader.load(mapUrl);
+                return load(mapUrl);
             }).then(sourceMapData => {
                 const parsed = JSON.parse(sourceMapData);
                 const smap = new sourceMap.SourceMapConsumer(parsed);
@@ -55,8 +86,6 @@ function loadUri(path) {
     });
 }
 
-let stack;
-let json = false;
 for (let i=2; i<process.argv.length; ++i) {
     try {
         const arg = process.argv[i];
@@ -74,8 +103,14 @@ for (let i=2; i<process.argv.length; ++i) {
             verbose = true;
         } else if (arg === "--json") {
             json = true;
+        } else if (arg === "--retries") {
+            retries = parseInt(process.argv[++i]);
+            if (isNaN(retries) || retries < 0) {
+                console.error("smipper [stack|-h|--help|-v|--verbose|--retries <number>|--json|-f=@FILE@|-");
+                process.exit(1);
+            }
         } else if (arg === "-h" || arg === "--help") {
-            console.error("smipper [stack|-h|--help|-v|--verbose|--json|-f=@FILE@|-");
+            console.error("smipper [stack|-h|--help|-v|--verbose|--retries <number>|--json|-f=@FILE@|-");
             process.exit(0);
         } else {
             stack = arg;
@@ -204,6 +239,9 @@ if (json) {
         }
         return processFrame(match[1] || "", match[2], parseInt(match[3]), parseInt(match[4]));
     })).then((results) => {
+        if (!results.length) {
+            throw new Error("Empty output");
+        }
         results.forEach(str => {
             console.log(str);
         });

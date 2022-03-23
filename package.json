@@ -12,7 +12,7 @@
     "author": "",
     "license": "ISC",
     "dependencies": {
-        "path-loader": "^1.0.10",
+        "got": "^9.6.0",
         "source-map": "^0.7.3"
     }
 }
