@@ -86,32 +86,33 @@ function loadUri(path) {
     });
 }
 
+let hasInput = false;
 for (let i=2; i<process.argv.length; ++i) {
     try {
         const arg = process.argv[i];
         if (verbose)
             console.error("got arg", arg);
-        if (arg === "-") {
-            stack = fs.readFileSync("/dev/stdin").toString();
-        } else if (arg === "-f" || arg === "--file") {
+        if (arg === "-f" || arg === "--file") {
             stack = fs.readFileSync(process.argv[++i]).toString();
-        } else if ( arg.lastIndexOf("-f", 0) === 0) {
+        } else if ( arg.startsWith("-f") === 0) {
             stack = fs.readFileSync(arg.substr(2)).toString();
-        } else if (arg.lastIndexOf("--file=", 0) === 0) {
+        } else if (arg.startsWith("--file=") === 0) {
             stack = fs.readFileSync(arg.substr(7)).toString();
         } else if (arg === "--verbose" || arg === "-v") {
             verbose = true;
         } else if (arg === "--json") {
             json = true;
-        } else if (arg === "--retries") {
-            retries = parseInt(process.argv[++i]);
+        } else if (arg.startsWith("--retries")) {
+            retries = parseInt(arg.substr(9));
             if (isNaN(retries) || retries < 0) {
-                console.error("smipper [stack|-h|--help|-v|--verbose|--retries <number>|--json|-f=@FILE@|-");
+                console.error("smipper [stack|-h|--help|-v|--verbose|--retries=<number>|--json|-f=@FILE@|-");
                 process.exit(1);
             }
         } else if (arg === "-h" || arg === "--help") {
-            console.error("smipper [stack|-h|--help|-v|--verbose|--retries <number>|--json|-f=@FILE@|-");
+            console.error("smipper [stack|-h|--help|-v|--verbose|--retries=<number>|--json|-f=@FILE@|-");
             process.exit(0);
+        } else if (arg === "-") {
+            // stdin
         } else {
             stack = arg;
         }
@@ -122,8 +123,11 @@ for (let i=2; i<process.argv.length; ++i) {
 }
 
 if (!stack) {
-    console.error("Nothing to do");
-    process.exit(0);
+    stack = fs.readFileSync("/dev/stdin").toString();
+    if (!stack) {
+        console.error("Nothing to do");
+        process.exit(0);
+    }
 }
 
 function processFrame(functionName, url, line, column)
