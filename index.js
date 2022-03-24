@@ -3,8 +3,10 @@
 
 const fs = require("fs");
 const got = require("got");
+const path = require("path");
 const sourceMap = require("source-map");
 const url = require("url");
+
 let verbose = false;
 let stack;
 let json = false;
@@ -25,6 +27,9 @@ for (let i=2; i<process.argv.length; ++i) {
             stack = fs.readFileSync(arg.substr(7)).toString();
         } else if (arg === "--verbose" || arg === "-v") {
             verbose = true;
+        } else if (arg === "--version") {
+            console.log(JSON.parse(fs.readFileSync(path.join(__dirname, "package.json"), "utf8")).version);
+            process.exit(0);
         } else if (arg === "--json") {
             json = true;
         } else if (arg === "--jsc") { // jsc has the wrong column for some reason
@@ -32,11 +37,11 @@ for (let i=2; i<process.argv.length; ++i) {
         } else if (arg.startsWith("--retries")) {
             retries = parseInt(arg.substr(9));
             if (isNaN(retries) || retries < 0) {
-                console.error("smipper [stack|-h|--help|-v|--verbose|--retries=<number>|--jsc|--json|-f=@FILE@|-");
+                console.error("smipper [stack|-h|--help|-v|--verbose|--version|--retries=<number>|--jsc|--json|-f=@FILE@|-");
                 process.exit(1);
             }
         } else if (arg === "-h" || arg === "--help") {
-            console.error("smipper [stack|-h|--help|-v|--verbose|--retries=<number>|--jsc|--json|-f=@FILE@|-");
+            console.error("smipper [stack|-h|--help|-v|--verbose|--version|--retries=<number>|--jsc|--json|-f=@FILE@|-");
             process.exit(0);
         } else if (arg === "-") {
             // stdin
