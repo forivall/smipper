@@ -9,6 +9,53 @@ let verbose = false;
 let stack;
 let json = false;
 let retries = 3;
+let jsc = 0;
+
+let hasInput = false;
+for (let i=2; i<process.argv.length; ++i) {
+    try {
+        const arg = process.argv[i];
+        if (verbose)
+            console.error("got arg", arg);
+        if (arg === "-f" || arg === "--file") {
+            stack = fs.readFileSync(process.argv[++i]).toString();
+        } else if ( arg.startsWith("-f") === 0) {
+            stack = fs.readFileSync(arg.substr(2)).toString();
+        } else if (arg.startsWith("--file=") === 0) {
+            stack = fs.readFileSync(arg.substr(7)).toString();
+        } else if (arg === "--verbose" || arg === "-v") {
+            verbose = true;
+        } else if (arg === "--json") {
+            json = true;
+        } else if (arg === "--jsc") { // jsc has the wrong column for some reason
+            jsc = 1;
+        } else if (arg.startsWith("--retries")) {
+            retries = parseInt(arg.substr(9));
+            if (isNaN(retries) || retries < 0) {
+                console.error("smipper [stack|-h|--help|-v|--verbose|--retries=<number>|--jsc|--json|-f=@FILE@|-");
+                process.exit(1);
+            }
+        } else if (arg === "-h" || arg === "--help") {
+            console.error("smipper [stack|-h|--help|-v|--verbose|--retries=<number>|--jsc|--json|-f=@FILE@|-");
+            process.exit(0);
+        } else if (arg === "-") {
+            // stdin
+        } else {
+            stack = arg;
+        }
+    } catch (err) {
+        console.error("Error: " + err.toString());
+        process.exit(1);
+    }
+}
+
+if (!stack) {
+    stack = fs.readFileSync("/dev/stdin").toString();
+    if (!stack) {
+        console.error("Nothing to do");
+        process.exit(0);
+    }
+}
 
 function load(path)
 {
@@ -86,50 +133,6 @@ function loadUri(path) {
     });
 }
 
-let hasInput = false;
-for (let i=2; i<process.argv.length; ++i) {
-    try {
-        const arg = process.argv[i];
-        if (verbose)
-            console.error("got arg", arg);
-        if (arg === "-f" || arg === "--file") {
-            stack = fs.readFileSync(process.argv[++i]).toString();
-        } else if ( arg.startsWith("-f") === 0) {
-            stack = fs.readFileSync(arg.substr(2)).toString();
-        } else if (arg.startsWith("--file=") === 0) {
-            stack = fs.readFileSync(arg.substr(7)).toString();
-        } else if (arg === "--verbose" || arg === "-v") {
-            verbose = true;
-        } else if (arg === "--json") {
-            json = true;
-        } else if (arg.startsWith("--retries")) {
-            retries = parseInt(arg.substr(9));
-            if (isNaN(retries) || retries < 0) {
-                console.error("smipper [stack|-h|--help|-v|--verbose|--retries=<number>|--json|-f=@FILE@|-");
-                process.exit(1);
-            }
-        } else if (arg === "-h" || arg === "--help") {
-            console.error("smipper [stack|-h|--help|-v|--verbose|--retries=<number>|--json|-f=@FILE@|-");
-            process.exit(0);
-        } else if (arg === "-") {
-            // stdin
-        } else {
-            stack = arg;
-        }
-    } catch (err) {
-        console.error("Error: " + err.toString());
-        process.exit(1);
-    }
-}
-
-if (!stack) {
-    stack = fs.readFileSync("/dev/stdin").toString();
-    if (!stack) {
-        console.error("Nothing to do");
-        process.exit(0);
-    }
-}
-
 function processFrame(functionName, url, line, column)
 {
     if (verbose)
@@ -149,8 +152,7 @@ function processFrame(functionName, url, line, column)
 
             // it appears that we're supposed to reduce the column
             // number by 1 when we get this from jsc
-            --column;
-            const pos = smap.originalPositionFor({ line, column });
+            const pos = smap.originalPositionFor({ line, column: column - jsc });
             if (!pos.source) {
                 if (verbose)
                     console.error("nothing here", pos);
