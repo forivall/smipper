@@ -73,6 +73,10 @@ function load(path)
             }
             return;
         }
+        if (!path.startsWith("http://") && !path.startsWith("https://")) {
+            reject(new Error("Not a url"));
+            return;
+        }
         let retryIndex = 0;
         async function get()
         {
