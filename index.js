@@ -77,6 +77,10 @@ function load(path)
             reject(new Error("Not a url"));
             return;
         }
+        if (path.startsWith("http://localcontrol.netflix.com/")) {
+            reject(new Error("No need to resolve this one"));
+            return;
+        }
         let retryIndex = 0;
         async function get()
         {
