@@ -117,11 +117,20 @@ function loadUri(path) {
                     return path + ".map";
 
                 const mapUrl = jsData.substr(idx + 21);
+                const match = /^(data:.+\/.+;)base64,/.exec(mapUrl);
+                if (match) {
+                    return mapUrl.substr(match[1].length);
+                }
                 if (mapUrl.indexOf("://") != -1) {
                     return mapUrl;
                 }
+                // console.log(mapUrl);
                 return (new url.URL(mapUrl, path)).href;
             }).then(mapUrl => {
+                console.log(mapUrl.substr(0, 20));
+                if (mapUrl.startsWith("base64,")) {
+                    return Buffer.from(mapUrl.substr(7), "base64").toString();
+                }
                 return load(mapUrl);
             }).then(sourceMapData => {
                 const parsed = JSON.parse(sourceMapData);
