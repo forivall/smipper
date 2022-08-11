@@ -62,9 +62,44 @@ if (!stack) {
     }
 }
 
+function findFile(dir, fn) {
+    const list = fs.readdirSync(dir);
+    for (let file of list) {
+        const match = (file === fn);
+        file = dir + '/' + file;
+        const stat = fs.statSync(file);
+        if (stat && stat.isDirectory()) {
+            const ret = findFile(file, fn);
+            if (ret) {
+                return ret;
+            }
+        } else if (match) {
+            return "file://" + file;
+        }
+    }
+    return undefined;
+}
+
+function rewriteLocalControl(url)
+{
+    const found = findFile(process.cwd(), path.basename(url.substring(6)));
+    if (found)
+        return found;
+    throw new Error("Couldn't resolve localcontrol " + url);
+}
+
 function load(path)
 {
     return new Promise((resolve, reject) => {
+        if (path.startsWith("http://localcontrol.netflix.com/")) {
+            try {
+                path = rewriteLocalControl(path);
+            } catch (err) {
+                reject(err);
+                return;
+            }
+        }
+
         if (path.startsWith("file:///")) {
             try {
                 resolve(fs.readFileSync(path.substr(7), "utf8"));
@@ -73,14 +108,12 @@ function load(path)
             }
             return;
         }
+
         if (!path.startsWith("http://") && !path.startsWith("https://")) {
             reject(new Error("Not a url"));
             return;
         }
-        if (path.startsWith("http://localcontrol.netflix.com/")) {
-            reject(new Error("No need to resolve this one"));
-            return;
-        }
+
         let retryIndex = 0;
         async function get()
         {
