@@ -127,7 +127,7 @@ function loadUri(path) {
                 // console.log(mapUrl);
                 return (new url.URL(mapUrl, path)).href;
             }).then(mapUrl => {
-                console.log(mapUrl.substr(0, 20));
+                // console.log(mapUrl.substr(0, 20));
                 if (mapUrl.startsWith("base64,")) {
                     return Buffer.from(mapUrl.substr(7), "base64").toString();
                 }
