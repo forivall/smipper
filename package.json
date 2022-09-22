@@ -4,15 +4,20 @@
     "description": "",
     "main": "index.js",
     "scripts": {
+        "build": "node ./node_modules/.bin/tsc index.ts && chmod +x ./index.js",
         "test": "echo \"Error: no test specified\" && exit 1"
-    },
-    "bin": {
-        "smipper": "index.js"
     },
     "author": "",
     "license": "ISC",
     "dependencies": {
         "got": "^9.6.0",
         "source-map": "^0.7.4"
+    },
+    "devDependencies": {
+        "@types/got": "^9.6.12",
+        "@types/node": "^18.7.18",
+        "@types/source-map": "^0.5.7",
+        "prettier": "^2.7.1",
+        "typescript": "^4.8.3"
     }
 }
