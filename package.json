@@ -7,6 +7,7 @@
         "build": "node ./node_modules/.bin/tsc index.ts && chmod +x ./index.js",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
+    "repository": "https://github.com/Andersbakken/smipper.git",
     "author": "",
     "license": "ISC",
     "dependencies": {
