@@ -3,6 +3,9 @@
     "version": "17.0.0",
     "description": "",
     "main": "index.js",
+    "bin": {
+        "smipper": "index.js"
+    },
     "scripts": {
         "build": "node ./node_modules/.bin/tsc index.ts && chmod +x ./index.js",
         "test": "echo \"Error: no test specified\" && exit 1"

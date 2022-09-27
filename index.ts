@@ -8,19 +8,23 @@ import * as sourceMap from "source-map";
 import * as url from "url";
 
 let verbose = false;
-let stack;
+let stack: string;
 let json = false;
 let retries = 3;
 let jsc = 0;
 
 for (let i = 2; i < process.argv.length; ++i) {
     try {
-        const arg = process.argv[i];
+        const arg = process.argv[i]!;
         if (verbose) {
             console.error("got arg", arg);
         }
         if (arg === "-f" || arg === "--file") {
-            stack = fs.readFileSync(process.argv[++i]).toString();
+            ++i;
+            if (i >= process.argv.length) {
+                throw new Error("Missing file argument");
+            }
+            stack = fs.readFileSync(process.argv[i]!).toString();
         } else if (arg.startsWith("-f")) {
             stack = fs.readFileSync(arg.substring(2)).toString();
         } else if (arg.startsWith("--file=")) {
@@ -67,7 +71,7 @@ if (!stack) {
     }
 }
 
-function build(functionName: string, url: string, line: number, column: number): string {
+function build({ functionName, sourceURL: url, line, column }: Frame): string {
     return `${functionName ? "at " + functionName + " " : ""}${url}:${line}:${column}`;
 }
 
@@ -97,44 +101,33 @@ function rewriteLocalControl(url: string) {
     throw new Error("Couldn't resolve localcontrol " + url);
 }
 
-function load(path: string): Promise<string> {
-    return new Promise((resolve, reject) => {
-        if (path.startsWith("http://localcontrol.netflix.com/")) {
-            try {
-                path = rewriteLocalControl(path);
-            } catch (err) {
-                reject(err);
-                return;
+async function load(path: string): Promise<string> {
+    const isLocalControl = path.startsWith("http://localcontrol.netflix.com/");
+    if (isLocalControl) {
+        path = rewriteLocalControl(path);
+    }
+
+    if (path.startsWith("file:///")) {
+        try {
+            return fs.readFileSync(path.substring(7), "utf8");
+        } catch (err) {
+            if (isLocalControl) {
+                throw err;
             }
+            path = rewriteLocalControl(path);
+            return fs.readFileSync(path.substring(7), "utf8");
         }
+    }
 
-        if (path.startsWith("file:///")) {
-            try {
-                resolve(fs.readFileSync(path.substring(7), "utf8"));
-            } catch (err) {
-                reject(err);
-            }
-            return;
-        }
+    if (!path.startsWith("http://") && !path.startsWith("https://")) {
+        throw new Error("Not a url");
+    }
 
-        if (!path.startsWith("http://") && !path.startsWith("https://")) {
-            reject(new Error("Not a url"));
-            return;
-        }
-
-        let retryIndex = 0;
-        async function get() {
-            try {
-                const response = await got.get(path);
-                console.log(response.headers);
-                return response.body;
-            } catch (err) {
-                reject(err);
-            }
-        }
-
-        get().then(resolve, reject);
-    });
+    const response = await got.get(path);
+    if (verbose) {
+        console.error(response.headers);
+    }
+    return response.body;
 }
 
 type SourceMapResolve = (res: sourceMap.SourceMapConsumer) => void;
@@ -148,6 +141,7 @@ function loadUri(path: string): Promise<sourceMap.SourceMapConsumer> {
     if (path[0] === "/") {
         path = "file://" + path;
     }
+    // inflight cache requests
     return new Promise((resolve: SourceMapResolve, reject: Rejecter) => {
         if (verbose) {
             console.log("loading", path);
@@ -157,34 +151,7 @@ function loadUri(path: string): Promise<sourceMap.SourceMapConsumer> {
                 resolvers: [resolve],
                 rejecters: [reject]
             };
-            load(path)
-                .then((jsData: string) => {
-                    const idx = jsData.lastIndexOf("//# sourceMappingURL=");
-                    if (verbose) {
-                        console.error("Got the file", jsData.length, idx);
-                    }
-                    if (idx == -1) {
-                        return path + ".map";
-                    }
-
-                    const mapUrl = jsData.substring(idx + 21);
-                    const match = /^(data:.+\/.+;)base64,/.exec(mapUrl);
-                    if (match) {
-                        return mapUrl.substring(match[1].length);
-                    }
-                    if (mapUrl.indexOf("://") != -1) {
-                        return mapUrl;
-                    }
-                    // console.log(mapUrl);
-                    return new url.URL(mapUrl, path).href;
-                })
-                .then((mapUrl) => {
-                    // console.log(mapUrl.substring(0, 20));
-                    if (mapUrl.startsWith("base64,")) {
-                        return Buffer.from(mapUrl.substring(7), "base64").toString();
-                    }
-                    return load(mapUrl);
-                })
+            return loadAndReadMapping(path)
                 .then(async (sourceMapData: string) => {
                     const parsed = JSON.parse(sourceMapData);
                     const smap: sourceMap.SourceMapConsumer = await new sourceMap.SourceMapConsumer(parsed);
@@ -197,14 +164,14 @@ function loadUri(path: string): Promise<sourceMap.SourceMapConsumer> {
                     }
                 })
                 .catch((err) => {
-                    const pending = sourceMaps[path];
+                    const pending = sourceMaps[path]!;
                     // sourceMaps.delete(path);
                     pending.rejecters.forEach((func: (err: Error) => void) => {
                         func(err);
                     });
                 });
         } else {
-            const cur = sourceMaps[path];
+            const cur = sourceMaps[path]!;
             if (verbose) {
                 console.error("path is in source maps already", cur);
             }
@@ -212,6 +179,32 @@ function loadUri(path: string): Promise<sourceMap.SourceMapConsumer> {
             cur.rejecters.push(reject);
         }
     });
+}
+async function loadAndReadMapping(path: string): Promise<string> {
+    const jsData = await load(path);
+    const idx = jsData.lastIndexOf("//# sourceMappingURL=");
+    if (verbose) {
+        console.error("Got the file", jsData.length, idx);
+    }
+    let mapUrl: string;
+    if (idx == -1) {
+        mapUrl = path + ".map";
+    } else {
+        mapUrl = jsData.substring(idx + 21);
+        const match = /^(data:.+\/.+;)base64,/.exec(mapUrl);
+        if (match) {
+            mapUrl = mapUrl.substring(match[1]!.length);
+        } else if (mapUrl.indexOf("://") === -1) {
+            mapUrl = new url.URL(mapUrl, path).href;
+        }
+        // console.log(mapUrl);
+    }
+
+    // console.log(mapUrl.substring(0, 20));
+    if (mapUrl.startsWith("base64,")) {
+        return Buffer.from(mapUrl.substring(7), "base64").toString();
+    }
+    return load(mapUrl);
 }
 
 type Frame = {
@@ -222,120 +215,103 @@ type Frame = {
     index?: number;
 };
 
-function processFrame(functionName: string, url: string, line: number, column: number): Promise<Frame | string> {
+async function processFrame(oldFrame: Frame): Promise<Frame> {
+    let { functionName, sourceURL: url, line, column } = oldFrame;
     if (verbose) {
         console.log("got frame", functionName, url, line, column);
     }
     if (functionName.endsWith("@")) {
         functionName = functionName.substring(0, functionName.length - 1);
     }
-    return new Promise((resolve) => {
-        let newUrl: string, newLine: number, newColumn: number;
+    let newUrl = url,
+        newLine: number | null = line,
+        newColumn: number | null = column;
+    if (verbose) {
+        console.error("calling loadUri", url);
+    }
+    if (!url.includes("://") && url[0] !== "/" && fs.existsSync(url)) {
+        url = `file://${process.cwd()}/${url}`;
+    }
+    try {
+        const smap = await loadUri(url);
         if (verbose) {
-            console.error("calling loadUri", url);
+            console.error("got map", url, Object.keys(smap));
         }
-        if (!url.includes("://") && url[0] !== "/" && fs.existsSync(url)) {
-            url = `file://${process.cwd()}/${url}`;
+
+        // it appears that we're supposed to reduce the column
+        // number by 1 when we get this from jsc
+        const pos = smap.originalPositionFor({ line, column: column - jsc });
+        if (!pos.source) {
+            if (verbose) {
+                console.error("nothing here", pos);
+            }
+            throw new Error("Mapping not found");
         }
-        return loadUri(url)
-            .then((smap) => {
-                if (verbose) {
-                    console.error("got map", url, Object.keys(smap));
-                }
 
-                // it appears that we're supposed to reduce the column
-                // number by 1 when we get this from jsc
-                const pos = smap.originalPositionFor({ line, column: column - jsc });
-                if (!pos.source) {
-                    if (verbose) {
-                        console.error("nothing here", pos);
-                    }
-                    throw new Error("Mapping not found");
-                }
-
-                // smc.sourceContentFor(pos.source);
-
-                newUrl = pos.source;
-                newLine = pos.line;
-                newColumn = pos.column;
-            })
-            .catch((err) => {
-                if (verbose) {
-                    console.error("didn't get map", url, err);
-                }
-                // console.error(err);
-            })
-            .finally(() => {
-                if (json) {
-                    const ret = {
-                        functionName: functionName,
-                        sourceURL: newUrl ? newUrl : url,
-                        line: newUrl ? newLine : line,
-                        column: newUrl ? newColumn : column
-                    };
-                    // if (newUrl) {
-                    //     ret.oldSourceURL = url;
-                    //     ret.oldLine = line;
-                    //     ret.oldColumn = column;
-                    // }
-                    // if (newUrl) {
-                    //     ret.newUrl = newUrl;
-                    //     ret.newLine = newLine;
-                    //     ret.newColumn = newColumn;
-                    // }
-                    resolve(ret);
-                } else {
-                    let str;
-                    if (newUrl) {
-                        str = `${build(functionName, newUrl, newLine, newColumn)} (${build("", url, line, column)})`;
-                    } else {
-                        str = build(functionName, url, line, column);
-                    }
-                    resolve(str);
-                }
-            });
-    });
+        // smc.sourceContentFor(pos.source);
+        newUrl = pos.source;
+        if (pos.line) newLine = pos.line;
+        if (pos.column) newColumn = pos.column;
+    } catch (err) {
+        if (verbose) {
+            console.error("didn't get map", url, err);
+        }
+    }
+    const ret: Frame = {
+        functionName: functionName,
+        sourceURL: newUrl,
+        line: newLine,
+        column: newColumn
+    };
+    // if (newUrl) {
+    //     ret.oldSourceURL = url;
+    //     ret.oldLine = line;
+    //     ret.oldColumn = column;
+    // }
+    // if (newUrl) {
+    //     ret.newUrl = newUrl;
+    //     ret.newLine = newLine;
+    //     ret.newColumn = newColumn;
+    // }
+    return ret;
 }
 
-if (json) {
-    let parsed;
-    try {
-        parsed = JSON.parse(stack);
-        if (!Array.isArray(parsed)) {
-            throw new Error("Expected array");
-        }
-    } catch (err) {
-        console.error(`Can't parse json ${err}`);
-        process.exit(1);
+function buildMappedFrame(oldFrame: Frame, newFrame: Frame) {
+    if (oldFrame.sourceURL === newFrame.sourceURL) {
+        return build(oldFrame);
     }
-    Promise.all(
+    return `${build(newFrame)} (${build({ ...oldFrame, functionName: "" })})`;
+}
+
+async function mainJson() {
+    const parsed = JSON.parse(stack);
+    if (!Array.isArray(parsed)) {
+        throw new Error("Expected array");
+    }
+    const results = await Promise.all(
         parsed.map((frame) => {
             if (verbose) {
                 console.error("got frame frame", frame);
             }
-            return processFrame(frame.functionName || "", frame.sourceURL || "", frame.line, frame.column);
+            return processFrame(frame);
         })
-    )
-        .then((results) => {
-            results.forEach((frame: Frame | string, index: number) => {
-                if (typeof frame !== "object") {
-                    throw new Error("Huh?");
-                }
-                frame.index = index;
-            });
-            // console.log("shit", results);
-            console.log(JSON.stringify(results, null, 4));
-        })
-        .catch((error) => {
-            console.error("Got an error", error);
-            process.exit(2);
-        });
-} else {
-    Promise.all(
+    );
+    results.forEach((frame: Frame | string, index: number) => {
+        if (typeof frame !== "object") {
+            throw new Error("Huh?");
+        }
+        frame.index = index;
+    });
+    // console.log("shit", results);
+    console.log(JSON.stringify(results, null, 4));
+}
+
+async function mainString() {
+    const results = await Promise.all(
         stack
             .split("\n")
             .filter((x) => x)
-            .map((x) => {
+            .map(async (x) => {
                 x = x.trim();
                 let match = / *at *([^ ]*).* \(?([^ ]+):([0-9]+):([0-9]+)/.exec(x);
                 if (!match) {
@@ -351,19 +327,22 @@ if (json) {
                     }
                     return x;
                 }
-                return processFrame(match[1] || "", match[2], parseInt(match[3]), parseInt(match[4]));
+
+                const frame = {
+                    functionName: match[1] || "",
+                    sourceURL: match[2] || "",
+                    line: parseInt(match[3]!),
+                    column: parseInt(match[4]!)
+                };
+                return buildMappedFrame(frame, await processFrame(frame));
             })
-    )
-        .then((results) => {
-            if (!results.length) {
-                throw new Error("Empty output");
-            }
-            results.forEach((str) => {
-                console.log(str);
-            });
-        })
-        .catch((error) => {
-            console.error("Got an error", error);
-            process.exit(3);
-        });
+    );
+    results.forEach((str) => {
+        console.log(str);
+    });
 }
+
+(json ? mainJson() : mainString()).catch((error) => {
+    console.error("Got an error", error);
+    process.exit(2);
+});
