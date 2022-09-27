@@ -181,13 +181,21 @@ function loadUri(path: string): Promise<sourceMap.SourceMapConsumer> {
     });
 }
 async function loadAndReadMapping(path: string): Promise<string> {
-    const jsData = await load(path);
-    const idx = jsData.lastIndexOf("//# sourceMappingURL=");
-    if (verbose) {
-        console.error("Got the file", jsData.length, idx);
+    let jsData: string | undefined;
+    let idx = -1;
+    try {
+        jsData = await load(path);
+        const idx = jsData.lastIndexOf("//# sourceMappingURL=");
+        if (verbose) {
+            console.error("Got the file", jsData.length, idx);
+        }
+    } catch (err) {
+        if (verbose) {
+            console.error("No file, trying with <filename>.map", err);
+        }
     }
     let mapUrl: string;
-    if (idx == -1) {
+    if (!jsData || idx == -1) {
         mapUrl = path + ".map";
     } else {
         mapUrl = jsData.substring(idx + 21);
