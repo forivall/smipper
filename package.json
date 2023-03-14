@@ -2,12 +2,14 @@
     "name": "smipper",
     "version": "21.0.0",
     "description": "",
-    "bin": "smipper",
+    "bin": {
+        "smipper": "./index.js"
+    },
     "files": [
         "smipper"
     ],
     "scripts": {
-        "build": "node ./node_modules/.bin/tsc index.ts && mv ./index.js ./smipper && chmod +x ./smipper",
+        "build": "node ./node_modules/.bin/tsc index.ts && chmod +x ./index.js",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
     "author": "",
