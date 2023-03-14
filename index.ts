@@ -125,7 +125,9 @@ function load(path: string): Promise<string> {
         // let retryIndex = 0;
         async function get(): Promise<string> {
             const response = await got.get(path, { timeout: 10000 });
-            console.log(response.headers);
+            if (verbose) {
+                console.error(response.headers);
+            }
             return response.body || "";
         }
 
@@ -146,7 +148,7 @@ function loadUri(path: string): Promise<sourceMap.SourceMapConsumer> {
     }
     return new Promise((resolve: SourceMapResolve, reject: Rejecter) => {
         if (verbose) {
-            console.log("loading", path);
+            console.error("loading", path);
         }
         if (!(path in sourceMaps)) {
             sourceMaps[path] = {
@@ -227,7 +229,7 @@ type Frame = {
 
 function processFrame(functionName: string, url: string, line: number, column: number): Promise<Frame | string> {
     if (verbose) {
-        console.log("got frame", functionName, url, line, column);
+        console.error("got frame", functionName, url, line, column);
     }
     if (functionName.endsWith("@")) {
         functionName = functionName.substring(0, functionName.length - 1);
