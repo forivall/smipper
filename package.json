@@ -2,7 +2,7 @@
     "name": "smipper",
     "version": "19.0.0",
     "description": "",
-    "main": "smiper",
+    "main": "smipper",
     "files": [
         "smipper"
     ],
