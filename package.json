@@ -6,7 +6,7 @@
         "smipper": "./index.js"
     },
     "files": [
-        "smipper"
+        "index.js"
     ],
     "scripts": {
         "build": "node ./node_modules/.bin/tsc index.ts && chmod +x ./index.js",
