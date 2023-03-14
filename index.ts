@@ -15,7 +15,7 @@ let jsc = 0;
 
 for (let i = 2; i < process.argv.length; ++i) {
     try {
-        const arg = process.argv[i];
+        const arg = process.argv[i] || "";
         if (verbose) {
             console.error("got arg", arg);
         }
@@ -98,7 +98,7 @@ function rewriteLocalControl(url: string) {
 }
 
 function load(path: string): Promise<string> {
-    return new Promise((resolve, reject) => {
+    return new Promise<string>((resolve, reject) => {
         if (path.startsWith("http://localcontrol.netflix.com/")) {
             try {
                 path = rewriteLocalControl(path);
@@ -122,15 +122,11 @@ function load(path: string): Promise<string> {
             return;
         }
 
-        let retryIndex = 0;
-        async function get() {
-            try {
-                const response = await got.get(path);
-                console.log(response.headers);
-                return response.body;
-            } catch (err) {
-                reject(err);
-            }
+        // let retryIndex = 0;
+        async function get(): Promise<string> {
+            const response = await got.get(path, { timeout: 10000 });
+            console.log(response.headers);
+            return response.body || "";
         }
 
         get().then(resolve, reject);
@@ -198,6 +194,9 @@ function loadUri(path: string): Promise<sourceMap.SourceMapConsumer> {
                 })
                 .catch((err) => {
                     const pending = sourceMaps[path];
+                    if (!pending) {
+                        throw new Error("Gotta have pending");
+                    }
                     // sourceMaps.delete(path);
                     pending.rejecters.forEach((func: (err: Error) => void) => {
                         func(err);
@@ -207,6 +206,10 @@ function loadUri(path: string): Promise<sourceMap.SourceMapConsumer> {
             const cur = sourceMaps[path];
             if (verbose) {
                 console.error("path is in source maps already", cur);
+            }
+
+            if (!cur) {
+                throw new Error("Gotta have cur");
             }
             cur.resolvers.push(resolve);
             cur.rejecters.push(reject);
@@ -256,8 +259,9 @@ function processFrame(functionName: string, url: string, line: number, column: n
                 // smc.sourceContentFor(pos.source);
 
                 newUrl = pos.source;
-                newLine = pos.line;
-                newColumn = pos.column;
+
+                newLine = pos.line || 0;
+                newColumn = pos.column || 0;
             })
             .catch((err) => {
                 if (verbose) {
