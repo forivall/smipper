@@ -29,7 +29,7 @@ export class CacheEntry {
                 const encoded = encodeURIComponent(url);
                 fs.writeFileSync(path.join(tempdir, encoded), contents);
             }
-            const dest = path.join(this.smipper.cacheDir, encodeURIComponent(this.key));
+            const dest = path.join(this.smipper.cacheDir, `smipper:${encodeURIComponent(this.key)}`);
             fs.renameSync(tempdir, dest);
             this.smipper.verbose("Moved", this.entries.keys(), "from", tempdir, "to", dest);
             this.trim();
@@ -73,7 +73,7 @@ export class Cache {
     }
 
     get(key: string, url: string): string | undefined {
-        const file = path.join(this.smipper.cacheDir, encodeURIComponent(key), encodeURIComponent(url));
+        const file = path.join(this.smipper.cacheDir, `smipper:${encodeURIComponent(key)}`, encodeURIComponent(url));
         try {
             return fs.readFileSync(file, "utf8");
         } catch (err: unknown) {

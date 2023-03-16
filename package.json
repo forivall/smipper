@@ -4,14 +4,13 @@
     "description": "",
     "main": "./index.js",
     "bin": {
-        "smipper": "./index.js"
+        "smipper": "./dist/index.js"
     },
     "files": [
-        "index.js",
-        "Cache.js"
+        "dist"
     ],
     "scripts": {
-        "build": "node ./node_modules/.bin/tsc --target es2020 --module node16 src/index.ts --outDir ./dist && chmod +x ./index.js",
+        "build": "node ./node_modules/.bin/tsc --target es2020 --module node16 src/index.ts --outDir ./dist && chmod +x ./dist/index.js",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
     "author": "",
