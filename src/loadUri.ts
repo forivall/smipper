@@ -1,9 +1,10 @@
-import * as sourceMap from "source-map";
 import { Rejecter, SourceMapResolve } from "./types";
 import { load } from "./load";
 import { Smipper } from "./Smipper";
+import assert from "assert";
+import sourceMap from "source-map";
 
-export async function loadUri(smipper: Smipper, path: string): Promise<sourceMap.SourceMapConsumer> {
+export function loadUri(smipper: Smipper, path: string): Promise<sourceMap.SourceMapConsumer> {
     if (path[0] === "/") {
         path = "file://" + path;
     }
@@ -25,6 +26,7 @@ export async function loadUri(smipper: Smipper, path: string): Promise<sourceMap
                     const mapUrl = jsData.substring(idx + 21);
                     const match = /^(data:.+\/.+;)base64,/.exec(mapUrl);
                     if (match) {
+                        assert(match[1] !== undefined);
                         return mapUrl.substring(match[1].length);
                     }
                     if (mapUrl.indexOf("://") != -1) {
