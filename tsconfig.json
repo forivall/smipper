@@ -2,7 +2,7 @@
     "exclude": ["**/.*/", "examples/**", "autobahn/**", "node_modules/**", "dist/**", "*.def.ts"],
     "compilerOptions": {
         "target": "es2020",
-        "typeRoots": ["./src/typings", "./node_modules/@nf-types"],
+        "typeRoots": [],
         "noUncheckedIndexedAccess": true,
         "strictBindCallApply": true,
         "newLine": "LF",
@@ -19,10 +19,6 @@
         "sourceMap": true,
         "incremental": true,
         "lib": ["es2019"],
-        "baseUrl": ".",
-        "paths": {
-            "~/*": ["src/*"]
-        },
-        "plugins": [{ "transform": "@zerollup/ts-transform-paths" }]
+        "baseUrl": "."
     }
 }
