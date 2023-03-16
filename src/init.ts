@@ -52,7 +52,7 @@ export function init(): Smipper {
             } else if (arg === "--verbose" || arg === "-v") {
                 smipper.verbose = console.error.bind(console);
             } else if (arg === "--version") {
-                console.log(JSON.parse(fs.readFileSync(path.join(__dirname, "package.json"), "utf8")).version);
+                console.log(JSON.parse(fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf8")).version);
                 process.exit(0);
             } else if (arg === "--json") {
                 smipper.json = true;
