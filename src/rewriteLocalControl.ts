@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { Smipper } from "./Smipper";
 
 function findFile(dir: string, fn: string): string | undefined {
     const list = fs.readdirSync(dir);
@@ -19,8 +20,9 @@ function findFile(dir: string, fn: string): string | undefined {
     return undefined;
 }
 
-export function rewriteLocalControl(url: string): string {
+export function rewriteLocalControl(smipper: Smipper, url: string): string {
     const found = findFile(process.cwd(), path.basename(url.substring(6)));
+    smipper.verbose("Rewriting", url, "in", process.cwd(), "=>", found);
     if (found) {
         return found;
     }
