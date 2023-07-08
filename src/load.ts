@@ -4,8 +4,9 @@ import fs from "fs";
 import got from "got";
 
 export async function load(smipper: Smipper, path: string): Promise<string> {
+    smipper.verbose("load", path);
     if (path.startsWith("http://localcontrol.netflix.com/")) {
-        return rewriteLocalControl(path);
+        path = rewriteLocalControl(smipper, path);
     }
 
     if (path.startsWith("file:///")) {
