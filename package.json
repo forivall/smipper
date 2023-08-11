@@ -4,7 +4,7 @@
     "description": "",
     "main": "./index.js",
     "bin": {
-        "smipper": "./dist/index.js"
+        "smipper": "dist/index.js"
     },
     "files": [
         "dist"
