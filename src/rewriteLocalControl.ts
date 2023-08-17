@@ -21,8 +21,13 @@ function findFile(dir: string, fn: string): string | undefined {
 }
 
 export function rewriteLocalControl(smipper: Smipper, url: string): string {
-    const found = findFile(process.cwd(), path.basename(url.substring(6)));
-    smipper.verbose("Rewriting", url, "in", process.cwd(), "=>", found);
+    let file = path.basename(url.substring(6));
+    const q = file.indexOf("?");
+    if (q !== -1) {
+        file = file.substring(0, q);
+    }
+    const found = findFile(process.cwd(), file);
+    smipper.verbose(`Rewriting ${url} in ${process.cwd()} (${file}) => ${found}`);
     if (found) {
         return found;
     }
