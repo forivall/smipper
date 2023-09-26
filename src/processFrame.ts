@@ -3,6 +3,7 @@ import { Smipper } from "./Smipper";
 import { loadUri } from "./loadUri";
 import { buildStackLine } from "./buildStackLine";
 import fs from "fs";
+import { rewriteOCA } from "./rewriteOCA";
 
 export function processFrame(
     smipper: Smipper,
@@ -15,6 +16,7 @@ export function processFrame(
     if (functionName.endsWith("@")) {
         functionName = functionName.substring(0, functionName.length - 1);
     }
+    url = rewriteOCA(smipper, url);
     return new Promise((resolve) => {
         let newUrl: string, newLine: number, newColumn: number;
         smipper.verbose("calling loadUri", url);
