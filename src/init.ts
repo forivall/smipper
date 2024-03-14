@@ -34,7 +34,10 @@ export function init(): Smipper {
                 break;
             }
             case "SMIPPER_NO_ORIGINAL_URL": {
-                smipper.noOriginalUrl = true;
+                const val = process.env[key];
+                if (val && val !== "false" && val !== "0") {
+                    smipper.noOriginalUrl = true;
+                }
                 break;
             }
         }
