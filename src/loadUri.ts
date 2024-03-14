@@ -23,7 +23,8 @@ export function loadUri(smipper: Smipper, path: string): Promise<sourceMap.Sourc
                         return path + ".map";
                     }
 
-                    const mapUrl = jsData.substring(idx + 21);
+                    const end = jsData.indexOf("\n", idx + 21);
+                    const mapUrl = jsData.substring(idx + 21, end === -1 ? jsData.length : end);
                     const match = /^(data:.+\/.+;)base64,/.exec(mapUrl);
                     if (match) {
                         assert(match[1] !== undefined);
