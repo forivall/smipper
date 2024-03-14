@@ -11,7 +11,7 @@ export function init(): Smipper {
         jsc: 0,
         cacheDir: path.join(os.homedir(), ".cache", "smipper", "cache"),
         cacheSize: 10,
-        sourceMaps: {},
+        sourceMaps: new Map(),
         noOriginalUrl: false
     };
 

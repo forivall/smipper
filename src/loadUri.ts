@@ -10,11 +10,11 @@ export function loadUri(smipper: Smipper, path: string): Promise<sourceMap.Sourc
     }
     return new Promise((resolve: SourceMapResolve, reject: Rejecter) => {
         smipper.verbose("loading", path);
-        if (!(path in smipper.sourceMaps)) {
-            smipper.sourceMaps[path] = {
+        if (!smipper.sourceMaps.has(path)) {
+            smipper.sourceMaps.set(path, {
                 resolvers: [resolve],
                 rejecters: [reject]
-            };
+            });
             load(smipper, path)
                 .then((jsData: string) => {
                     const idx = jsData.lastIndexOf("//# sourceMappingURL=");
@@ -46,7 +46,7 @@ export function loadUri(smipper: Smipper, path: string): Promise<sourceMap.Sourc
                 .then(async (sourceMapData: string) => {
                     const parsed = JSON.parse(sourceMapData);
                     const smap: sourceMap.SourceMapConsumer = await new sourceMap.SourceMapConsumer(parsed);
-                    const pending = smipper.sourceMaps[path];
+                    const pending = smipper.sourceMaps.get(path);
                     // sourceMaps.delete(path);
                     if (pending) {
                         pending.resolvers.forEach((func: SourceMapResolve) => {
@@ -55,7 +55,7 @@ export function loadUri(smipper: Smipper, path: string): Promise<sourceMap.Sourc
                     }
                 })
                 .catch((err) => {
-                    const pending = smipper.sourceMaps[path];
+                    const pending = smipper.sourceMaps.get(path);
                     if (!pending) {
                         throw new Error("Gotta have pending");
                     }
@@ -65,7 +65,7 @@ export function loadUri(smipper: Smipper, path: string): Promise<sourceMap.Sourc
                     });
                 });
         } else {
-            const cur = smipper.sourceMaps[path];
+            const cur = smipper.sourceMaps.get(path);
             smipper.verbose("path is in source maps already", cur);
 
             if (!cur) {
