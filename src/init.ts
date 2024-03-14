@@ -11,7 +11,8 @@ export function init(): Smipper {
         jsc: 0,
         cacheDir: path.join(os.homedir(), ".cache", "smipper", "cache"),
         cacheSize: 10,
-        sourceMaps: {}
+        sourceMaps: {},
+        noOriginalUrl: false
     };
 
     for (const key in process.env) {
@@ -32,11 +33,15 @@ export function init(): Smipper {
                 }
                 break;
             }
+            case "SMIPPER_NO_ORIGINAL_URL": {
+                smipper.noOriginalUrl = true;
+                break;
+            }
         }
     }
 
     const usage =
-        "smipper [stack|-h|--help|-v|--verbose|--version|--jsc|--json|--file=@FILE@|-f=@FILE@|--cache-key=$CACHE_KEY$|--cache-dir=$CACHE_DIR$|--cache-size=$CACHE_SIZE$|-";
+        "smipper [stack|-h|--help|-v|--verbose|--version|--jsc|--json|--file=@FILE@|-f=@FILE@|--cache-key=$CACHE_KEY$|--cache-dir=$CACHE_DIR$|--cache-size=$CACHE_SIZE$|--no-original-url|-n|-";
 
     for (let i = 2; i < process.argv.length; ++i) {
         try {
@@ -74,6 +79,8 @@ export function init(): Smipper {
             } else if (arg === "-h" || arg === "--help") {
                 console.log(usage);
                 process.exit(0);
+            } else if (arg === "--no-original-url" || arg == "-n") {
+                smipper.noOriginalUrl = true;
             } else if (arg === "-") {
                 // stdin
             } else {

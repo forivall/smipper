@@ -12,4 +12,5 @@ export interface Smipper {
     cache?: Cache;
     cacheEntry?: CacheEntry;
     sourceMaps: Record<string, SourceMapData>;
+    noOriginalUrl: boolean;
 }

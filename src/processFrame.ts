@@ -68,12 +68,10 @@ export function processFrame(
                 } else {
                     let str;
                     if (newUrl) {
-                        str = `${buildStackLine(functionName, newUrl, newLine, newColumn)} (${buildStackLine(
-                            "",
-                            url,
-                            line,
-                            column
-                        )})`;
+                        str = `${buildStackLine(functionName, newUrl, newLine, newColumn)}`;
+                        if (!smipper.noOriginalUrl) {
+                            str += ` (${buildStackLine("", url, line, column)})`;
+                        }
                     } else {
                         str = buildStackLine(functionName, url, line, column);
                     }
