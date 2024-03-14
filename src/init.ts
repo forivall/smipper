@@ -2,6 +2,7 @@ import { Smipper } from "./Smipper";
 import fs from "fs";
 import os from "os";
 import path from "path";
+import assert from "assert";
 import { Cache } from "./Cache";
 
 export function init(): Smipper {
@@ -12,7 +13,18 @@ export function init(): Smipper {
         cacheDir: path.join(os.homedir(), ".cache", "smipper", "cache"),
         cacheSize: 10,
         sourceMaps: new Map(),
-        noOriginalUrl: false
+        noOriginalUrl: false,
+        mappedUrls: new Map()
+    };
+
+    const addMapUrl = (arg: string): void => {
+        arg.split(" ").forEach((x: string, idx: number) => {
+            const split = x.split("=>");
+            if (split.length !== 2 || !split[0] || !split[1]) {
+                throw new Error(`Failed to parse map url: ${arg} ${idx}`);
+            }
+            smipper.mappedUrls.set(split[0], split[1]);
+        });
     };
 
     for (const key in process.env) {
@@ -44,7 +56,7 @@ export function init(): Smipper {
     }
 
     const usage =
-        "smipper [stack|-h|--help|-v|--verbose|--version|--jsc|--json|--file=@FILE@|-f=@FILE@|--cache-key=$CACHE_KEY$|--cache-dir=$CACHE_DIR$|--cache-size=$CACHE_SIZE$|--no-original-url|-n|-";
+        "smipper [stack|-h|--help|-v|--verbose|--version|--jsc|--json|--file=@FILE@|-f=@FILE@|--cache-key=$CACHE_KEY$|--cache-dir=$CACHE_DIR$|--cache-size=$CACHE_SIZE$|--no-original-url|-n|--map-url|-m|-";
 
     for (let i = 2; i < process.argv.length; ++i) {
         try {
@@ -84,13 +96,19 @@ export function init(): Smipper {
                 process.exit(0);
             } else if (arg === "--no-original-url" || arg == "-n") {
                 smipper.noOriginalUrl = true;
+            } else if (arg === "--map-url" || arg === "-m") {
+                addMapUrl(process.argv[++i]);
+            } else if (arg.startsWith("--map-url=")) {
+                addMapUrl(arg.substring(10));
             } else if (arg === "-") {
                 // stdin
             } else {
                 smipper.stack = arg;
             }
         } catch (err: unknown) {
-            console.error("Error: " + (err as Error).toString());
+            assert(err instanceof Error);
+            console.error("Error: " + err.toString());
+            smipper.verbose(err.stack);
             process.exit(1);
         }
     }
