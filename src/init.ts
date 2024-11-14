@@ -88,8 +88,8 @@ export function init(): Smipper {
                 smipper.cacheDir = String(process.argv[++i]);
             } else if (arg.startsWith("--cache-dir=")) {
                 smipper.cacheDir = arg.substring(12);
-            } else if (arg === "--jsc") {
-                // jsc has the wrong column for some reason
+            } else if (arg === "--jsc" || arg === "--sm" || arg === "--spidermonkey" || arg === "--moz") {
+                // jsc and spidermonkey have the wrong column for some reason
                 smipper.jsc = 1;
             } else if (arg === "-h" || arg === "--help") {
                 console.log(usage);
