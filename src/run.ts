@@ -16,9 +16,9 @@ export async function run(smipper: Smipper): Promise<string> {
             .filter((x) => x)
             .map((x) => {
                 x = x.trim();
-                let match = / *at *([^ ]*).* \(?([^ ]+):([0-9]+):([0-9]+)/.exec(x);
+                let match = / *\bat\b *([^ ]*).* \(?([^ ]+):([0-9]+):([0-9]+)/.exec(x);
                 if (!match) {
-                    match = /([^ ]+@)?(.*):([0-9]+):([0-9]+)/.exec(x);
+                    match = /(?:([^ ]+)(?: *\[|@))?(.*):([0-9]+):([0-9]+)/.exec(x);
                 }
                 smipper.verbose(x, " => ", match);
                 if (!match) {
