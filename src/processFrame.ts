@@ -11,14 +11,14 @@ export function processFrame(
     url: string,
     line: number,
     column: number
-): Promise<Frame | string> {
+): Promise<Frame & { oldName?: string } | string> {
     smipper.verbose("got frame", functionName, url, line, column);
     if (functionName.endsWith("@")) {
         functionName = functionName.substring(0, functionName.length - 1);
     }
     url = rewriteOCA(smipper, url);
     return new Promise((resolve) => {
-        let newUrl: string, newLine: number, newColumn: number;
+        let newUrl: string, newLine: number, newColumn: number, newName: string | null;
         smipper.verbose("calling loadUri", url);
         if (!url.includes("://") && url[0] !== "/" && fs.existsSync(url)) {
             url = `file://${process.cwd()}/${url}`;
@@ -37,6 +37,7 @@ export function processFrame(
 
                 // smc.sourceContentFor(pos.source);
 
+                newName = pos.name;
                 newUrl = pos.source;
 
                 newLine = pos.line || 0;
@@ -48,12 +49,15 @@ export function processFrame(
             })
             .finally(() => {
                 if (smipper.json) {
-                    const ret = {
-                        functionName: functionName,
+                    const ret: Frame & { oldName?: string } = {
+                        functionName: newName ? newName : functionName,
                         sourceURL: newUrl ? newUrl : url,
                         line: newUrl ? newLine : line,
                         column: newUrl ? newColumn : column
                     };
+                    if (newName) {
+                        ret.oldName = functionName;
+                    }
                     // if (newUrl) {
                     //     ret.oldSourceURL = url;
                     //     ret.oldLine = line;
@@ -68,9 +72,9 @@ export function processFrame(
                 } else {
                     let str;
                     if (newUrl) {
-                        str = `${buildStackLine(functionName, newUrl, newLine, newColumn)}`;
+                        str = `${buildStackLine(newName || functionName, newUrl, newLine, newColumn)}`;
                         if (!smipper.noOriginalUrl) {
-                            str += ` (${buildStackLine("", url, line, column)})`;
+                            str += ` (${buildStackLine(newName && functionName !== newName ? functionName : "", url, line, column)})`;
                         }
                     } else {
                         str = buildStackLine(functionName, url, line, column);
