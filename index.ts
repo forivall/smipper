@@ -323,7 +323,7 @@ async function mainString() {
                 x = x.trim();
                 let match = / *at *([^ ]*).* \(?([^ ]+):([0-9]+):([0-9]+)/.exec(x);
                 if (!match) {
-                    match = /([^ ]+@)?(.*):([0-9]+):([0-9]+)/.exec(x);
+                    match = /([^ ]+(?: *\[|@))?(.*):([0-9]+):([0-9]+)/.exec(x);
                 }
                 if (verbose) {
                     console.error(x, " => ", match);
