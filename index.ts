@@ -185,7 +185,7 @@ async function loadAndReadMapping(path: string): Promise<string> {
     let idx = -1;
     try {
         jsData = await load(path);
-        const idx = jsData.lastIndexOf("//# sourceMappingURL=");
+        idx = jsData.lastIndexOf("//# sourceMappingURL=");
         if (verbose) {
             console.error("Got the file", jsData.length, idx);
         }
